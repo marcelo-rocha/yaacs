@@ -1,35 +1,43 @@
 use std::fs::File;
+use std::io::SeekFrom;
+use std::io::prelude::*;
 use std::io::{self, BufRead};
-use std::path::Path;
 use std::env;
-//use std::process::exit;
+use std::collections::HashSet;
 
 fn read_file(name: &str) -> Result<i32, &'static str>{
     // File hosts must exist in current path before this produces output
-    let mut r:i32 = 0;
-    if let Ok(lines) = read_lines(name) {
-        // Consumes the iterator, returns an (Optional) String
+    let mut freqs = HashSet::<i32>::new();
+    let mut f:i32 = 0;
+    let file_result = File::open(name);
+    if file_result.is_err() {
+        return Err("file open error")
+    }
+    let mut file = file_result.unwrap();
+    loop {
+        let lines = io::BufReader::new(&file).lines();
+        //println!("looping");
         for line in lines {
             if let Ok(s) = line {
                 if s.len() <= 1 {
                     return Err("invalid line");
                 }
                 let num = s.parse::<i32>().unwrap();
-                r += num;
+                f += num;
+                if !freqs.contains(&f) {
+                    freqs.insert(f);
+                    println!("{} change freq to {}", num, f);
+                }
+                else {
+                    return Ok(f)
+                }
             }
         }
-        Ok(r)
-    } else {
-        Err("read error")
-    }
-}
-
-// The output is wrapped in a Result to allow matching on errors
-// Returns an Iterator to the Reader of the lines of the file.
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
+        let r = file.seek(SeekFrom::Start(0));
+        if r.is_err() {
+            return Err("read error");
+        }
+    } 
 }
 
 fn main() {
@@ -39,7 +47,7 @@ fn main() {
         std::process::exit(-1);
     }
     if let Ok(r) = read_file(&args[1]) {
-        println!("Total is {}", r);
+        println!("First repeated frequency is {}", r);
     } else {
         println!("read error");
     }
