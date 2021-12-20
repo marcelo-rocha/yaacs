@@ -32,16 +32,25 @@ impl Bingo {
         self.boards.push(board);        
     }
 
-    pub fn draw(&mut self, value: usize) -> Option<isize> {
+    pub fn draw(&mut self, value: usize, last_winner_required: bool) -> Option<isize> {
         assert!(value < 100);
+        let mut found_winner = false;
+        let mut last_sum: isize = 0;
         for v in self.index[value].iter() {
             let board = &mut self.boards[v.0];
             if matches!(board.set_number(v.1, v.2, value), MarkNumberResult::BoardWinner) {
-                let sum = board.get_unmarked_sum();
-                return Some(sum * value as isize)
+                found_winner = true;
+                last_sum = board.get_unmarked_sum();
+                if !last_winner_required {
+                    break; 
+                }
             } 
         }
-        None
+        if found_winner {
+            Some(last_sum * value as isize)
+        } else {
+            None
+        }
     }
 }
 
@@ -50,17 +59,22 @@ impl Bingo {
 struct BoardMap {
     rows: [i8; BOARD_SIZE],
     columns: [i8; BOARD_SIZE],
-    totals: [isize; BOARD_SIZE]
+    totals: [isize; BOARD_SIZE],
+    completed: bool
 }
 
 enum MarkNumberResult {
     NoWinner,
+    AlreadyCompleted,
     BoardWinner
 }
 
 impl BoardMap {
     fn set_number(&mut self, x:usize, y:usize, value: usize) -> MarkNumberResult {
         assert!(x < BOARD_SIZE && y < BOARD_SIZE);
+        if self.completed {
+            return MarkNumberResult::AlreadyCompleted
+        }
 
         let bitx = 1 << (BOARD_SIZE - x - 1);
         let m = self.rows[y] | bitx;
@@ -73,7 +87,12 @@ impl BoardMap {
         self.totals[y] -= value as isize;
         assert!(self.totals[y] >= 0);
 
-        return if m == 0x1f || n == 0x1f {MarkNumberResult::BoardWinner} else {MarkNumberResult::NoWinner};
+        if m == 0x1f || n == 0x1f {
+            self.completed = true;
+            MarkNumberResult::BoardWinner
+        } else {
+            MarkNumberResult::NoWinner
+        }
     }
 
     fn get_unmarked_sum(&self) -> isize {

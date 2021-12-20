@@ -58,7 +58,12 @@ fn parse_board(r: &mut BufReader<std::fs::File>) -> Option<bingo::BoardNumbers> 
 
 
 fn main() {
-    let filename: String = args().nth(1).unwrap();
+    let args_qty = args().len();
+    let arg_flag = args().nth(args_qty - 2);
+    let show_last_winner = arg_flag.unwrap() == "--last-winner";
+    let filename = args().nth(args_qty - 1).unwrap();
+    println!("open file {}", filename);
+
     let file = File::open(filename).unwrap();
     let mut reader = BufReader::new(file);
     let mut draw_input = String::new();
@@ -77,13 +82,20 @@ fn main() {
         game.add_board(board.unwrap())
     }
 
+    let mut last_result: Option<isize> = Default::default();
     for (_, v) in draws.into_iter().enumerate() {
-        let r = game.draw(v as usize);
+        let r = game.draw(v as usize, show_last_winner);
         if r.is_some() {
-            println!("result is {}", r.unwrap());
-            return;
+            last_result = r;
+            if !show_last_winner {
+                println!("result is {}", r.unwrap());
+                return;    
+            } 
         }
     }
-
-    println!("no value found");
-}
+    if show_last_winner {
+        println!("last winner is {}", last_result.unwrap());
+        return;
+    }
+    println!("no winner found");
+}   
